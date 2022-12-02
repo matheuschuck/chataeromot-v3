@@ -2,11 +2,11 @@ version: "3"
 services:
   rocketchat:
     container_name: rocketchat
-    image: rocket.chat:latest
+    image: registry.rocket.chat/rocketchat/rocket.chat:${RELEASE:-5.3.3}
     restart: unless-stopped
     environment:
      - PORT=3000
-     - ROOT_URL=https://mywebsite.com
+     - ROOT_URL=https://chat.rocketchat
      - MONGO_URL=mongodb://mongo:27017/rocketchat
      - MONGO_OPLOG_URL=mongodb://mongo:27017/local
     depends_on:
@@ -59,8 +59,13 @@ services:
       - 443:443
     volumes:
       - ./etc/nginx/templates:/etc/nginx/templates:ro
-      - ./etc/letsencrypt:/etc/letsencrypt:ro
-      - ./certbot/data:/var/www/certbot
+      # - ./etc/letsencrypt:/etc/letsencrypt:ro
+      # - ./certbot/data:/var/www/certbot
+      - ./www:/var/www
+      - ./server/nginx.conf:/etc/nginx/nginx.conf
+      - ./server/conf.d:/etc/nginx/conf.d/
+      - ./server/sites/:/etc/nginx/sites-available/
+      - ./server/sites/:/etc/nginx/sites-enabled/
   # certbot:
   #   container_name: certbot
   #   image: certbot/certbot:latest
