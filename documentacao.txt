@@ -1,0 +1,169 @@
+=================================
+----- INSTALAÇÃO DE RECURSOS ----
+================================= 
+-> Alterando IP e nome do servidor.
+
+- Podemos alterar o nome do servidor acesse o arquivo hostname em /etc/. No exemplo usaremos o Vim como etidor de texto, mas poderá ser qualquer outro.
+
+sudo vim /etc/hostname
+
+-> Instalação de ssh server para conexão com putty
+
+sudo apt-get install openssh-server
+
+-> Configurando o firewall ufw
+- ATENÇÃO: Caso esteja com uma conexão ssh na porta 22, liberar ela antes de ativar as regras para não ficar sem conexão
+
+sudo apt-get install ufw
+
+sudo ufw default deny incoming
+
+sudo ufw default allow outgoing
+
+sudo ufw allow 22/tcp
+
+sudo ufw allow 443/tcp
+
+- Depois de criar as regras vamos habilitar o firewall
+
+sudo ufw enable
+
+- Checando o status
+
+sudo ufw status
+
+- Caso adicionar modificar ou excluir alguma uma regra temos que reiniciar o firewall
+
+sudo ufw reload
+
+- Se precisar desabilitar o firewall
+
+sudo ufw disable
+
+-> Configurando sistema anti brute-force
+
+- Iremos instalar o fail2ban software de prevenção a intrusão e protege os servidores contra ataques de força bruta
+
+sudo apt-get update
+
+sudo apt-get install fail2ban
+
+---------------------------------
+-> Instalando Docker e Docker-compose
+- Docker compose v2.x.x é necessária.
+
+sudo snap install docker
+sudo apt-get install docker-compose
+
+- É necessária fornecer permissões a parta do docker
+
+sudo chmod +x /usr/local/bin/docker-compose
+
+
+-> Instalando Nginx
+
+---OBS: Case obte por utilizar o nginx em conteiner, pular essa etapa
+
+sudo apt-get install nginx
+
+- Configurando nginx
+
+sudo nano /etc/nginx/sites-available/default
+
+'''
+
+# HTTPS Server
+    server {
+        listen 443 ssl;
+        server_name chat.inumio.com;
+
+        error_log /var/log/nginx/rocketchat_error.log;
+
+        ssl_certificate /etc/nginx/certificate.crt;
+        ssl_certificate_key /etc/nginx/certificate.key;
+        ssl_dhparam /etc/nginx/dhparams.pem;
+        ssl_protocols TLSv1.2;
+        ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA';
+        ssl_prefer_server_ciphers on;
+        ssl_session_cache shared:SSL:20m;
+        ssl_session_timeout 180m;
+
+        location / {
+            proxy_pass http://chat.inumio.com:3000/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Nginx-Proxy true;
+            proxy_redirect off;
+        }
+    }
+
+'''
+
+- Após testar configurações e reiniciar o serviço
+
+sudo service nginx configtest && sudo service nginx restart
+
+-> SSL
+- Para atualizar o snap para a ultima versão
+
+sudo snap install core; sudo snap refresh core
+
+
+
+-SSL auto assinado
+
+- Para gerar um ssl auto assinado use
+
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/certificate.key -out /etc/nginx/certificate.crt
+
+- Definindo permissões
+
+sudo chmod 400 /etc/nginx/certificate.key
+
+- Gerar grupo Strong Diffie Helman
+
+sudo openssl dhparam -out /etc/nginx/dhparams.pem 2048
+
+
+-> Etidanto arquivo hosts
+
+sudo vim /etc/hosts
+
+-> Criando um docker compose
+https://docs.rocket.chat/quick-start/deploying-rocket.chat/rapid-deployment-methods/docker-and-docker-compose/docker-containers
+
+
+- Fonte
+https://docs.rocket.chat/quick-start/deploying-rocket.chat/rapid-deployment-methods/docker-and-docker-compose/docker-containers
+https://certbot.eff.org/instructions?ws=nginx&os=ubuntufocal
+https://letsencrypt.org/getting-started/
+=================================
+------ VERSÕES UTILIZADAS -------
+================================= 
+
+Ubuntu 20.04
+kernel 5.15.0-43-generic
+
+snap e snapd 2.57.6
+- Fonte
+
+=================================
+---------- ANOTAÇÕES ------------
+=================================
+
+
+- Iformações sobre ssl publico
+
+Country Name (2 letter code) [AU]:br
+State or Province Name (full name) [Some-State]:Rio Grande do Sul
+Locality Name (eg, city) []:Porto Alegre
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:Aeromot
+Organizational Unit Name (eg, section) []:TI
+Common Name (e.g. server FQDN or YOUR name) []:rocketchat01
+Email Address []:matheus.milanezi@aeromot.com.br
+desenvolvedor@desenvolvedor-Virtual-Machine:~$

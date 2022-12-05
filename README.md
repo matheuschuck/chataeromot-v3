@@ -1,2 +1,2 @@
-# chataeromot-v3
-Versão de testes par implementação
+# rocketcaht-docker
+Implementação do Rocket.chat em Docker
