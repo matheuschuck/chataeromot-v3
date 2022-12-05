@@ -1,80 +1,45 @@
-version: "3"
+volumes:
+  mongodb_data: { driver: local }
+
 services:
   rocketchat:
-    container_name: rocketchat
-    image: registry.rocket.chat/rocketchat/rocket.chat:${RELEASE:-5.3.3}
-    restart: unless-stopped
-    environment:
-     - PORT=3000
-     - ROOT_URL=https://chat.rocketchat
-     - MONGO_URL=mongodb://mongo:27017/rocketchat
-     - MONGO_OPLOG_URL=mongodb://mongo:27017/local
-    depends_on:
-     - mongo
-  mongo:
-    container_name: mongo
-    image: mongo:latest
-    restart: unless-stopped
-    volumes:
-     - ./data/db:/data/db
-    command: mongod --oplogSize 128 --replSet rs0 
+    image: registry.rocket.chat/rocketchat/rocket.chat:${RELEASE:-latest}
+    restart: on-failure
     labels:
-      - "traefik.enable=false"
- 
-  # this container's job is just run the command to initialize the replica set.
-  # it will run the command and remove himself (it will not stay running)
-  mongo-init-replica:
-    image: mongo:latest
-    command: >
-      bash -c
-        "for i in `seq 1 30`; do
-            msg=$$(mongosh mongo/rocketchat --quiet --eval \"
-            rs.initiate({
-              _id: 'rs0',
-              members: [ { _id: 0, host: 'mongo:27017' } ]})\" 2>&1)
-            s=$$?
-            if [ \"$$s\" -eq 0 ]; then
-              break
-            fi
-            if [[ \"$$msg\" == \"MongoServerError: already initialized\" ]] ; then
-              echo $$msg
-              break
-            fi
-          echo \"Tried $$i times. Waiting 5 secs...\";
-          sleep 5;
-        done; (exit 0)"
-    depends_on:
-      - mongo
- 
-  nginx:
-    container_name: nginx
-    image: nginx:latest
-    restart: unless-stopped
+      traefik.enable: "true"
+      traefik.http.routers.rocketchat.rule: Host(`${DOMAIN}`)
+      traefik.http.routers.rocketchat.tls: "true"
+      traefik.http.routers.rocketchat.entrypoints: https
+      traefik.http.routers.rocketchat.tls.certresolver: le
     environment:
-      - DOMAIN
+      MONGO_URL: "${MONGO_URL:-\
+        mongodb://${MONGODB_ADVERTISED_HOSTNAME:-mongodb}:${MONGODB_INITIAL_PRIMARY_PORT_NUMBER:-27017}/\
+        ${MONGODB_DATABASE:-rocketchat}?replicaSet=${MONGODB_REPLICA_SET_NAME:-rs0}}"
+      MONGO_OPLOG_URL: "${MONGO_OPLOG_URL:\
+        -mongodb://${MONGODB_ADVERTISED_HOSTNAME:-mongodb}:${MONGODB_INITIAL_PRIMARY_PORT_NUMBER:-27017}/\
+        local?replicaSet=${MONGODB_REPLICA_SET_NAME:-rs0}}"
+      ROOT_URL: ${ROOT_URL:-http://chat.aeromot.com.br:${HOST_PORT:-3000}}
+      PORT: ${PORT:-3000}
+      DEPLOY_METHOD: docker
+      # DEPLOY_PLATFORM: ${DEPLOY_PLATFORM}
     depends_on:
-      - rocketchat 
+      - mongodb
+    expose:
+      - ${PORT:-3000}
     ports:
-      - 80:80
-      - 443:443
+      - "${BIND_IP:-192.168.1.5}:${HOST_PORT:-3000}:${PORT:-3000}"
+    
+  mongodb:
+    image: docker.io/bitnami/mongodb:${MONGODB_VERSION:-4.4}
+    restart: on-failure
     volumes:
-      - ./etc/nginx/templates:/etc/nginx/templates:ro
-      # - ./etc/letsencrypt:/etc/letsencrypt:ro
-      # - ./certbot/data:/var/www/certbot
-      - ./www:/var/www
-      - ./server/nginx.conf:/etc/nginx/nginx.conf
-      - ./server/conf.d:/etc/nginx/conf.d/
-      - ./server/sites/:/etc/nginx/sites-available/
-      - ./server/sites/:/etc/nginx/sites-enabled/
-  certbot:
-    container_name: certbot
-    image: certbot/certbot:latest
-    depends_on:
-      - nginx
-    command: >-
-             certonly --reinstall --webroot --webroot-path=/var/www/certbot
-             --email ${EMAIL} --agree-tos --no-eff-email
-             -d ${DOMAIN}
-    volumes:
-      - ./etc/letsencrypt:/etc/letsencrypt
-      - ./certbot/data:/var/www/certbot
+      - ./db/mongodb_data:/bitnami/mongodb
+    environment:
+      MONGODB_REPLICA_SET_MODE: primary
+      MONGODB_REPLICA_SET_NAME: ${MONGODB_REPLICA_SET_NAME:-rs0}
+      MONGODB_PORT_NUMBER: ${MONGODB_PORT_NUMBER:-27017}
+      MONGODB_INITIAL_PRIMARY_HOST: ${MONGODB_INITIAL_PRIMARY_HOST:-mongodb}
+      MONGODB_INITIAL_PRIMARY_PORT_NUMBER: ${MONGODB_INITIAL_PRIMARY_PORT_NUMBER:-27017}
+      MONGODB_ADVERTISED_HOSTNAME: ${MONGODB_ADVERTISED_HOSTNAME:-mongodb}
+      MONGODB_ENABLE_JOURNAL: ${MONGODB_ENABLE_JOURNAL:-true}
+      ALLOW_EMPTY_PASSWORD: ${ALLOW_EMPTY_PASSWORD:-yes}
