@@ -59,6 +59,79 @@ sudo apt-get install docker-compose
 
 sudo chmod +x /usr/local/bin/docker-compose
 
+- Baixar yml com o compose padrão.
+
+sudo curl -L https://raw.githubusercontent.com/RocketChat/Docker.Official.Image/master/compose.yml -O
+
+- Arquivo yml utilizado para o docker-compose
+- Versão: PRE-ALPHA 0.0.1
+'''
+
+volumes:
+  mongodb_data: { driver: local }
+
+services:
+  rocketchat:
+    image: registry.rocket.chat/rocketchat/rocket.chat:${RELEASE:-latest}
+    restart: on-failure
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.rocketchat.rule: Host(`${DOMAIN}`)
+      traefik.http.routers.rocketchat.tls: "true"
+      traefik.http.routers.rocketchat.entrypoints: https
+      traefik.http.routers.rocketchat.tls.certresolver: le
+    environment:
+      MONGO_URL: "${MONGO_URL:-\
+        mongodb://${MONGODB_ADVERTISED_HOSTNAME:-mongodb}:${MONGODB_INITIAL_PRIMARY_PORT_NUMBER:-27017}/\
+        ${MONGODB_DATABASE:-rocketchat}?replicaSet=${MONGODB_REPLICA_SET_NAME:-rs0}}"
+      MONGO_OPLOG_URL: "${MONGO_OPLOG_URL:\
+        -mongodb://${MONGODB_ADVERTISED_HOSTNAME:-mongodb}:${MONGODB_INITIAL_PRIMARY_PORT_NUMBER:-27017}/\
+        local?replicaSet=${MONGODB_REPLICA_SET_NAME:-rs0}}"
+      ROOT_URL: ${ROOT_URL:-http://localhost:${HOST_PORT:-3000}}
+      PORT: ${PORT:-3000}
+      DEPLOY_METHOD: docker
+      #DEPLOY_PLATFORM: ${DEPLOY_PLATFORM}
+    depends_on:
+      - mongodb
+    expose:
+      - ${PORT:-3000}
+    ports:
+      - "${BIND_IP:-0.0.0.0}:${HOST_PORT:-3000}:${PORT:-3000}"
+
+    networks:
+      - web
+    
+
+  mongodb:
+    image: docker.io/bitnami/mongodb:${MONGODB_VERSION:-4.4}
+    restart: on-failure
+    volumes:
+      - mongodb_data:/bitnami/mongodb
+    environment:
+      MONGODB_REPLICA_SET_MODE: primary
+      MONGODB_REPLICA_SET_NAME: ${MONGODB_REPLICA_SET_NAME:-rs0}
+      MONGODB_PORT_NUMBER: ${MONGODB_PORT_NUMBER:-27017}
+      MONGODB_INITIAL_PRIMARY_HOST: ${MONGODB_INITIAL_PRIMARY_HOST:-mongodb}
+      MONGODB_INITIAL_PRIMARY_PORT_NUMBER: ${MONGODB_INITIAL_PRIMARY_PORT_NUMBER:-27017}
+      MONGODB_ADVERTISED_HOSTNAME: ${MONGODB_ADVERTISED_HOSTNAME:-mongodb}
+      MONGODB_ENABLE_JOURNAL: ${MONGODB_ENABLE_JOURNAL:-true}
+      ALLOW_EMPTY_PASSWORD: ${ALLOW_EMPTY_PASSWORD:-yes}
+    networks:
+      - web
+networks:
+  web:
+    driver: bridge
+
+'''
+- Criando arquivo .env
+
+
+'''
+
+DOMAIN=192.168.0.41
+
+'''
+
 
 -> Instalando Nginx
 
@@ -74,8 +147,8 @@ sudo nano /etc/nginx/sites-available/default
 
 # HTTPS Server
     server {
-        listen 443 ssl;
-        server_name chat.inumio.com;
+        listen 80;
+        server_name chat.aeromot.com.br;
 
         error_log /var/log/nginx/rocketchat_error.log;
 
@@ -89,7 +162,7 @@ sudo nano /etc/nginx/sites-available/default
         ssl_session_timeout 180m;
 
         location / {
-            proxy_pass http://chat.inumio.com:3000/;
+            proxy_pass http://chat.aeromot.com.br:3000/;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
@@ -115,6 +188,7 @@ sudo snap install core; sudo snap refresh core
 
 
 
+
 -SSL auto assinado
 
 - Para gerar um ssl auto assinado use
@@ -134,11 +208,17 @@ sudo openssl dhparam -out /etc/nginx/dhparams.pem 2048
 
 sudo vim /etc/hosts
 
+- Dentro do arquivo hosts
+
+127.0.0.1       localhost
+127.0.0.1       chat.aeromot.com.br
+
 -> Criando um docker compose
 https://docs.rocket.chat/quick-start/deploying-rocket.chat/rapid-deployment-methods/docker-and-docker-compose/docker-containers
 
 
 - Fonte
+
 https://docs.rocket.chat/quick-start/deploying-rocket.chat/rapid-deployment-methods/docker-and-docker-compose/docker-containers
 https://certbot.eff.org/instructions?ws=nginx&os=ubuntufocal
 https://letsencrypt.org/getting-started/
@@ -167,3 +247,15 @@ Organizational Unit Name (eg, section) []:TI
 Common Name (e.g. server FQDN or YOUR name) []:rocketchat01
 Email Address []:matheus.milanezi@aeromot.com.br
 desenvolvedor@desenvolvedor-Virtual-Machine:~$
+
+
+-> BANCO DE DADOS
+
+-nome usuario: 
+mongodb
+
+-senha do banco:
+MONGODB_ROOT_PASSWORD: secret
+
+-nome do banco: 
+rocketchat

@@ -1,5 +1,4 @@
-# version alpha 1.2
-# nginx via container
+# versao funcional alpha 1.0
 volumes:
   mongodb_data: { driver: local }
 
@@ -50,23 +49,6 @@ services:
       ALLOW_EMPTY_PASSWORD: ${ALLOW_EMPTY_PASSWORD:-yes}
     networks:
       - web
-  nginx:
-    container_name: nginx
-    image: nginx:latest
-    restart: unless-stopped
-    environment:
-      - DOMAIN
-    depends_on:
-      - rocketchat 
-    ports:
-      - 80:80
-      - 443:443
-    volumes:
-     # - ./etc/nginx/templates:/etc/nginx/templates:ro
-     # - ./etc/letsencrypt:/etc/letsencrypt:ro
-     # - ./certbot/data:/var/www/certbot
-      - ./server/sites-avaliable/:/etc/nginx/sites-available/
-
 networks:
   web:
     driver: bridge
